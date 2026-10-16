@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PBU — Papan Pemuka Pelantikan Jawatankuasa</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px;scroll-behavior:smooth}
+body{font-family:-apple-system,"Segoe UI",system-ui,sans-serif;background:#f0f4f8;color:#1a2740;line-height:1.6;min-height:100vh}
+a{color:#2563eb;text-decoration:none}
+button{cursor:pointer;font-family:inherit;font-size:.875rem}
+input,select,textarea{font-family:inherit;font-size:.875rem}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#e8edf3}
+::-webkit-scrollbar-thumb{background:#93adc8;border-radius:3px}
+
+/* ── Layout ───────────────────────────────────────────────── */
+#app{display:flex;min-height:100vh}
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+#sidebar{width:240px;min-width:240px;background:linear-gradient(180deg,#0f2d5e 0%,#163a78 100%);color:#c8d8f0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;z-index:100;transition:width .25s}
+#sidebar.collapsed{width:64px;min-width:64px}
+.sidebar-header{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.sidebar-logo{width:38px;height:38px;background:#2563eb;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0}
+.sidebar-title{font-size:.85rem;font-weight:600;color:#fff;line-height:1.3}
+.sidebar-subtitle{font-size:.72rem;color:#8aafd4;margin-top:1px}
+#sidebar.collapsed .sidebar-title,#sidebar.collapsed .sidebar-subtitle{display:none}
+.sidebar-toggle{margin-left:auto;background:none;border:none;color:#8aafd4;font-size:1rem;padding:4px;border-radius:4px;flex-shrink:0}
+.sidebar-toggle:hover{color:#fff;background:rgba(255,255,255,.1)}
+nav{flex:1;padding:10px 0}
+.nav-section{padding:6px 16px 4px;font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:#5c7fa8;font-weight:600;white-space:nowrap;overflow:hidden}
+#sidebar.collapsed .nav-section{visibility:hidden}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;color:#c8d8f0;font-size:.875rem;border-left:3px solid transparent;transition:all .15s;cursor:pointer;white-space:nowrap;overflow:hidden}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:rgba(37,99,235,.25);color:#fff;border-left-color:#60a5fa}
+.nav-icon{font-size:1.1rem;flex-shrink:0;width:22px;text-align:center}
+#sidebar.collapsed .nav-label{display:none}
+.sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.1);font-size:.72rem;color:#5c7fa8}
+#sidebar.collapsed .sidebar-footer{display:none}
+
+/* ── Main ─────────────────────────────────────────────────── */
+#main{flex:1;display:flex;flex-direction:column;overflow-x:hidden;min-width:0}
+
+/* ── Topbar ───────────────────────────────────────────────── */
+#topbar{background:#fff;border-bottom:1px solid #dde3ec;padding:12px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:1.1rem;font-weight:700;color:#0f2d5e;flex:1}
+.topbar-sub{font-size:.78rem;color:#6b7280;margin-left:6px;font-weight:400}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:6px;border:none;font-weight:500;transition:all .15s;white-space:nowrap}
+.btn-primary{background:#2563eb;color:#fff}
+.btn-primary:hover{background:#1d4ed8}
+.btn-secondary{background:#e8edf5;color:#1a2740}
+.btn-secondary:hover{background:#d4dce9}
+.btn-danger{background:#fee2e2;color:#b91c1c}
+.btn-danger:hover{background:#fecaca}
+.btn-success{background:#d1fae5;color:#065f46}
+.btn-success:hover{background:#a7f3d0}
+.btn-warning{background:#fef3c7;color:#92400e}
+.btn-warning:hover{background:#fde68a}
+.btn-sm{padding:5px 10px;font-size:.8rem}
+.btn-icon{padding:7px;border-radius:5px;background:#e8edf5;color:#1a2740;border:none}
+.btn-icon:hover{background:#d4dce9}
+
+/* ── Page sections ────────────────────────────────────────── */
+.page{display:none;padding:24px}
+.page.active{display:block}
+
+/* ── KPI Cards ────────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.kpi-card{background:#fff;border-radius:10px;padding:18px 20px;border:1px solid #dde3ec;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:var(--accent,#2563eb)}
+.kpi-label{font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.kpi-value{font-size:1.9rem;font-weight:700;color:#0f2d5e;margin:4px 0}
+.kpi-sub{font-size:.75rem;color:#6b7280}
+.kpi-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:2rem;opacity:.12}
+.kpi-card.green{--accent:#059669}
+.kpi-card.orange{--accent:#d97706}
+.kpi-card.purple{--accent:#7c3aed}
+.kpi-card.red{--accent:#dc2626}
+.kpi-card.teal{--accent:#0891b2}
+
+/* ── Charts Grid ──────────────────────────────────────────── */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+.charts-grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+.chart-card{background:#fff;border-radius:10px;padding:20px;border:1px solid #dde3ec}
+.chart-title{font-size:.875rem;font-weight:600;color:#0f2d5e;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.chart-wrap{position:relative}
+
+/* ── Filters bar ──────────────────────────────────────────── */
+.filters-bar{background:#fff;border-radius:10px;padding:14px 18px;border:1px solid #dde3ec;display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:flex-end}
+.filter-group{display:flex;flex-direction:column;gap:4px;min-width:130px}
+.filter-group label{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6b7280}
+.filter-group select,.filter-group input{padding:7px 10px;border:1px solid #dde3ec;border-radius:6px;background:#fff;color:#1a2740;outline:none}
+.filter-group select:focus,.filter-group input:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.12)}
+.filter-actions{display:flex;gap:8px;align-items:flex-end;margin-left:auto}
+
+/* ── Data Table ───────────────────────────────────────────── */
+.table-card{background:#fff;border-radius:10px;border:1px solid #dde3ec;overflow:hidden;margin-bottom:20px}
+.table-header{padding:14px 18px;border-bottom:1px solid #dde3ec;display:flex;align-items:center;gap:10px}
+.table-header h3{font-size:.9rem;font-weight:600;color:#0f2d5e;flex:1}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+thead th{background:#f4f7fb;padding:10px 14px;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #dde3ec;white-space:nowrap;position:sticky;top:0}
+tbody td{padding:10px 14px;border-bottom:1px solid #f0f2f5;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#f8fafd}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:600;margin:1px}
+.tag-blue{background:#dbeafe;color:#1d4ed8}
+.tag-green{background:#d1fae5;color:#065f46}
+.tag-orange{background:#fef3c7;color:#92400e}
+.tag-red{background:#fee2e2;color:#b91c1c}
+.tag-purple{background:#ede9fe;color:#5b21b6}
+.tag-gray{background:#f3f4f6;color:#374151}
+.badge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-size:.75rem;font-weight:700}
+.badge-high{background:#fee2e2;color:#b91c1c}
+.badge-med{background:#fef3c7;color:#92400e}
+.badge-low{background:#d1fae5;color:#065f46}
+.actions-cell{display:flex;gap:6px;white-space:nowrap}
+
+/* ── Empty State ──────────────────────────────────────────── */
+.empty-state{text-align:center;padding:48px 20px;color:#9ca3af}
+.empty-icon{font-size:3rem;margin-bottom:12px}
+.empty-title{font-size:1rem;font-weight:600;color:#6b7280;margin-bottom:6px}
+.empty-sub{font-size:.8rem}
+
+/* ── Modal ────────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,20,50,.45);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-lg{max-width:820px}
+.modal-header{padding:18px 22px;border-bottom:1px solid #dde3ec;display:flex;align-items:center;gap:10px}
+.modal-header h2{font-size:1rem;font-weight:700;color:#0f2d5e;flex:1}
+.modal-close{background:none;border:none;font-size:1.2rem;color:#9ca3af;padding:4px}
+.modal-close:hover{color:#374151}
+.modal-body{padding:22px;overflow-y:auto;flex:1}
+.modal-footer{padding:14px 22px;border-top:1px solid #dde3ec;display:flex;gap:8px;justify-content:flex-end}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+.form-group label{font-size:.78rem;font-weight:600;color:#374151}
+.form-group input,.form-group select,.form-group textarea{padding:8px 10px;border:1px solid #dde3ec;border-radius:6px;outline:none;color:#1a2740}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.1)}
+.form-group textarea{resize:vertical;min-height:70px}
+
+/* ── Members builder ──────────────────────────────────────── */
+.member-list{border:1px solid #dde3ec;border-radius:8px;overflow:hidden;margin-top:6px}
+.member-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;padding:8px 10px;border-bottom:1px solid #f0f2f5;align-items:center}
+.member-row:last-child{border-bottom:none}
+.member-row select,.member-row input{padding:6px 8px;border:1px solid #dde3ec;border-radius:5px;outline:none;width:100%}
+.member-add-row{padding:8px 10px;background:#f8fafd}
+.member-empty{padding:16px;text-align:center;color:#9ca3af;font-size:.8rem}
+
+/* ── Recommendation cards ─────────────────────────────────── */
+.rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.rec-card{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid #dde3ec;cursor:pointer;transition:all .15s;position:relative}
+.rec-card:hover{border-color:#2563eb;box-shadow:0 2px 12px rgba(37,99,235,.12)}
+.rec-card.selected{border-color:#2563eb;background:#eff6ff}
+.rec-card.flag-high{border-left:4px solid #dc2626}
+.rec-card.flag-low{border-left:4px solid #059669}
+.rec-card.flag-none{border-left:4px solid #d97706}
+.rec-name{font-size:.88rem;font-weight:600;color:#0f2d5e}
+.rec-dept{font-size:.72rem;color:#6b7280;margin-bottom:6px}
+.rec-count{font-size:1.6rem;font-weight:700}
+.rec-count.high{color:#dc2626}
+.rec-count.med{color:#d97706}
+.rec-count.low{color:#059669}
+.rec-label{font-size:.7rem;color:#9ca3af}
+.rec-badge{position:absolute;top:10px;right:10px;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:20px}
+.rec-badge-rec{background:#d1fae5;color:#065f46}
+.rec-badge-flag{background:#fee2e2;color:#b91c1c}
+.rec-badge-ok{background:#dbeafe;color:#1d4ed8}
+
+/* ── Workload bar ─────────────────────────────────────────── */
+.workload-bar-wrap{display:flex;align-items:center;gap:8px;margin:3px 0}
+.workload-bar{height:8px;border-radius:4px;background:#e8edf5;flex:1;overflow:hidden}
+.workload-bar-fill{height:100%;border-radius:4px;transition:width .3s}
+.workload-val{font-size:.78rem;font-weight:600;min-width:22px;text-align:right}
+
+/* ── Alert ────────────────────────────────────────────────── */
+.alert{padding:10px 14px;border-radius:7px;font-size:.82rem;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.alert-warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.alert-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#065f46}
+
+/* ── Toast ────────────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+.toast{background:#1a2740;color:#fff;padding:10px 16px;border-radius:8px;font-size:.82rem;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.2);animation:slideIn .2s ease;max-width:320px}
+.toast.success{border-left:4px solid #34d399}
+.toast.error{border-left:4px solid #f87171}
+.toast.warning{border-left:4px solid #fbbf24}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── Section title ────────────────────────────────────────── */
+.section-title{font-size:1.05rem;font-weight:700;color:#0f2d5e;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-title span{font-size:1.2rem}
+
+/* ── Import ───────────────────────────────────────────────── */
+.import-drop{border:2px dashed #93adc8;border-radius:10px;padding:32px;text-align:center;background:#f8fafd;cursor:pointer;transition:all .15s}
+.import-drop:hover,.import-drop.drag{border-color:#2563eb;background:#eff6ff}
+.import-drop input{display:none}
+.preview-table-wrap{max-height:300px;overflow:auto;border:1px solid #dde3ec;border-radius:8px;margin-top:12px}
+.import-tabs{display:flex;gap:0;border:1px solid #dde3ec;border-radius:8px;overflow:hidden;margin-bottom:16px;width:fit-content}
+.import-tab{padding:8px 20px;font-size:.85rem;font-weight:500;background:#f4f7fb;color:#374151;border:none;cursor:pointer;border-right:1px solid #dde3ec}
+.import-tab:last-child{border-right:none}
+.import-tab.active{background:#2563eb;color:#fff}
+.import-section{display:none}
+.import-section.active{display:block}
+
+/* ── Pagination ───────────────────────────────────────────── */
+.pagination{display:flex;align-items:center;gap:6px;padding:12px 18px;justify-content:flex-end;border-top:1px solid #f0f2f5}
+.page-btn{padding:5px 10px;border:1px solid #dde3ec;border-radius:5px;background:#fff;color:#374151;font-size:.8rem;cursor:pointer}
+.page-btn:hover{background:#f4f7fb}
+.page-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.page-info{font-size:.78rem;color:#6b7280;margin-right:auto}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media(max-width:900px){
+  .charts-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  #sidebar{width:64px;min-width:64px}
+  #sidebar .sidebar-title,#sidebar .sidebar-subtitle,#sidebar .nav-label,#sidebar .nav-section,#sidebar .sidebar-footer{display:none}
+  .page{padding:14px}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<!-- ═══ SIDEBAR ═══ -->
+<aside id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">P</div>
+    <div>
+      <div class="sidebar-title">PBU Dashboard</div>
+      <div class="sidebar-subtitle">Pelantikan Jawatankuasa</div>
+    </div>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="Togol sidebar">☰</button>
+  </div>
+  <nav>
+    <div class="nav-section">Gambaran Keseluruhan</div>
+    <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)">
+      <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
+    </div>
+    <div class="nav-section">Pengurusan</div>
+    <div class="nav-item" data-page="programmes" onclick="showPage('programmes',this)">
+      <span class="nav-icon">📋</span><span class="nav-label">Program</span>
+    </div>
+    <div class="nav-item" data-page="staff" onclick="showPage('staff',this)">
+      <span class="nav-icon">👤</span><span class="nav-label">Staf</span>
+    </div>
+    <div class="nav-section">Alatan</div>
+    <div class="nav-item" data-page="recommendation" onclick="showPage('recommendation',this)">
+      <span class="nav-icon">💡</span><span class="nav-label">Cadangan</span>
+    </div>
+    <div class="nav-item" data-page="import" onclick="showPage('import',this)">
+      <span class="nav-icon">📥</span><span class="nav-label">Import Data</span>
+    </div>
+  </nav>
+  <div class="sidebar-footer">Politeknik Balik Pulau<br/>© 2025</div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<div id="main">
+  <div id="topbar">
+    <div class="topbar-title" id="page-title">Dashboard <span class="topbar-sub" id="page-sub">Gambaran Keseluruhan &amp; Analitik</span></div>
+    <div id="topbar-actions"></div>
+  </div>
+
+  <!-- ── DASHBOARD PAGE ── -->
+  <div id="page-dashboard" class="page active">
+    <div class="filters-bar" id="dash-filters">
+      <div class="filter-group">
+        <label>Tahun</label>
+        <select id="f-year" onchange="applyDashFilters()"><option value="">Semua Tahun</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Program</label>
+        <select id="f-prog" onchange="applyDashFilters()"><option value="">Semua Program</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Jabatan / Unit</label>
+        <select id="f-dept" onchange="applyDashFilters()"><option value="">Semua Jabatan</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Staf</label>
+        <select id="f-staff" onchange="applyDashFilters()"><option value="">Semua Staf</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Peranan</label>
+        <select id="f-role" onchange="applyDashFilters()"><option value="">Semua Peranan</option></select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-secondary btn-sm" onclick="clearDashFilters()">Padam Penapis</button>
+      </div>
+    </div>
+    <!-- KPI -->
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <!-- Charts row 1 -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Pelantikan Mengikut Staf <span id="chart-staff-sub" style="font-weight:400;color:#6b7280;font-size:.75rem"></span></div>
+        <div class="chart-wrap" style="height:280px"><canvas id="chart-staff"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Mengikut Jabatan / Unit</div>
+        <div class="chart-wrap" style="height:280px"><canvas id="chart-dept"></canvas></div>
+      </div>
+    </div>
+    <!-- Charts row 2 -->
+    <div class="charts-grid-3">
+      <div class="chart-card">
+        <div class="chart-title">Pelantikan Mengikut Bulan</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="chart-month"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Mengikut Peranan Jawatankuasa</div>
+        <div class="chart-wrap" style="height:220px"><canvas id="chart-role"></canvas></div>
+      </div>
+    </div>
+    <!-- Tables -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="table-card">
+        <div class="table-header"><h3>🔴 Staf Kerap Dilantik</h3></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Staf</th><th>Jabatan</th><th>Jumlah</th></tr></thead><tbody id="tbl-high"></tbody></table></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><h3>🟢 Staf Kurang Pelantikan</h3></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Staf</th><th>Jabatan</th><th>Jumlah</th></tr></thead><tbody id="tbl-low"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROGRAMMES PAGE ── -->
+  <div id="page-programmes" class="page">
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label>Carian</label>
+        <input type="text" id="prog-search" placeholder="Nama program…" oninput="renderProgrammesTable()"/>
+      </div>
+      <div class="filter-group">
+        <label>Tahun</label>
+        <select id="prog-year" onchange="renderProgrammesTable()"><option value="">Semua</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Unit</label>
+        <select id="prog-unit" onchange="renderProgrammesTable()"><option value="">Semua</option></select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-secondary btn-sm" onclick="clearProgFilters()">Padam</button>
+        <button class="btn btn-warning btn-sm" onclick="showPage('import',document.querySelector('[data-page=import]'));setTimeout(()=>switchImportTab('prog'),100)">📥 Import</button>
+        <button class="btn btn-primary btn-sm" onclick="openProgModal()">+ Tambah Program</button>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-header">
+        <h3>Rekod Program</h3>
+        <span id="prog-count" style="font-size:.78rem;color:#6b7280"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Nama Program</th><th>Tarikh</th><th>Unit Penganjur</th><th>Ahli Jawatankuasa</th><th>Catatan</th><th>Tindakan</th></tr></thead>
+          <tbody id="prog-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="prog-pag"></div>
+    </div>
+  </div>
+
+  <!-- ── STAFF PAGE ── -->
+  <div id="page-staff" class="page">
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label>Carian</label>
+        <input type="text" id="staff-search" placeholder="Nama staf…" oninput="renderStaffTable()"/>
+      </div>
+      <div class="filter-group">
+        <label>Jabatan</label>
+        <select id="staff-dept-filter" onchange="renderStaffTable()"><option value="">Semua</option></select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-secondary btn-sm" onclick="clearStaffFilters()">Padam</button>
+        <button class="btn btn-warning btn-sm" onclick="showPage('import',document.querySelector('[data-page=import]'));setTimeout(()=>switchImportTab('staff'),100)">📥 Import</button>
+        <button class="btn btn-primary btn-sm" onclick="openStaffModal()">+ Tambah Staf</button>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><h3>Direktori Staf &amp; Jumlah Pelantikan</h3><span id="staff-count" style="font-size:.78rem;color:#6b7280"></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Nama Staf</th><th>Jabatan / Unit</th><th>Jumlah Pelantikan</th><th>Beban Kerja</th><th>Peranan</th><th>Tindakan</th></tr></thead>
+          <tbody id="staff-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="staff-pag"></div>
+    </div>
+  </div>
+
+  <!-- ── RECOMMENDATION PAGE ── -->
+  <div id="page-recommendation" class="page">
+    <div class="alert alert-info">💡 <div><strong>Cara penggunaan:</strong> Pilih penapis untuk melihat beban kerja staf. Staf dengan lebih sedikit pelantikan diserlahkan dalam hijau dan dicadangkan. Staf dengan banyak pelantikan ditandai dengan merah. Ini adalah untuk rujukan sahaja — tiada pelantikan automatik dibuat.</div></div>
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label>Tapis mengikut Jabatan</label>
+        <select id="rec-dept" onchange="renderRecommendation()"><option value="">Semua</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Susun mengikut</label>
+        <select id="rec-sort" onchange="renderRecommendation()">
+          <option value="asc">Paling Sedikit Pelantikan Dahulu</option>
+          <option value="desc">Paling Banyak Pelantikan Dahulu</option>
+          <option value="name">Mengikut Abjad</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Had — Tanda Jika ≥</label>
+        <input type="number" id="rec-threshold" value="5" min="1" max="99" oninput="renderRecommendation()" style="width:80px"/>
+      </div>
+    </div>
+    <div id="rec-summary" style="margin-bottom:16px"></div>
+    <div id="rec-grid" class="rec-grid"></div>
+    <div class="table-card">
+      <div class="table-header"><h3>Jadual Perbandingan Beban Kerja</h3></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Staf</th><th>Jabatan</th><th>Jml. Pelantikan</th><th>Beban Kerja</th><th>Program Terakhir</th><th>Cadangan</th></tr></thead>
+          <tbody id="rec-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── IMPORT PAGE ── -->
+  <div id="page-import" class="page">
+    <div class="section-title"><span>📥</span> Import Data</div>
+
+    <!-- Tabs: what to import -->
+    <div style="margin-bottom:18px">
+      <div style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:8px">Pilih jenis data untuk diimport:</div>
+      <div class="import-tabs">
+        <button class="import-tab active" id="tab-prog" onclick="switchImportTab('prog')">📋 Program &amp; Ahli</button>
+        <button class="import-tab" id="tab-staff" onclick="switchImportTab('staff')">👤 Staf Sahaja</button>
+      </div>
+    </div>
+
+    <!-- Tab: Programme import -->
+    <div class="import-section active" id="isec-prog">
+      <div class="alert alert-info">
+        ℹ️ <div>Fail yang diimport mestilah mengandungi lajur berikut (padanan tepat atau hampir):<br/>
+        <strong>Nama Program · Tarikh · Unit Penganjur · Nama Staf · Jabatan · Peranan · Catatan</strong><br/>
+        Setiap baris mewakili tugasan seorang staf kepada sesebuah program. Baris dengan program yang sama akan dikumpulkan secara automatik.</div>
+      </div>
+      <div style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:8px">Format fail yang disokong:</div>
+      <div class="import-tabs" style="margin-bottom:16px">
+        <button class="import-tab active" id="ptab-xlsx" onclick="switchFileTab('prog','xlsx')">📊 Excel (.xlsx/.xls/.csv)</button>
+        <button class="import-tab" id="ptab-pdf" onclick="switchFileTab('prog','pdf')">📄 PDF</button>
+      </div>
+
+      <div class="import-drop" id="import-drop-prog-xlsx" onclick="document.getElementById('file-input-prog-xlsx').click()">
+        <input type="file" id="file-input-prog-xlsx" accept=".xlsx,.xls,.csv" onchange="handleFileImport(this,'prog','xlsx')"/>
+        <div style="font-size:2.5rem;margin-bottom:10px">📂</div>
+        <div style="font-weight:600;color:#0f2d5e;margin-bottom:4px">Klik atau seret &amp; lepas fail Excel di sini</div>
+        <div style="font-size:.8rem;color:#6b7280">Menyokong .xlsx, .xls, .csv</div>
+      </div>
+      <div class="import-drop" id="import-drop-prog-pdf" style="display:none" onclick="document.getElementById('file-input-prog-pdf').click()">
+        <input type="file" id="file-input-prog-pdf" accept=".pdf" onchange="handleFileImport(this,'prog','pdf')"/>
+        <div style="font-size:2.5rem;margin-bottom:10px">📄</div>
+        <div style="font-weight:600;color:#0f2d5e;margin-bottom:4px">Klik atau seret &amp; lepas fail PDF di sini</div>
+        <div style="font-size:.8rem;color:#6b7280">PDF akan diekstrak teksnya secara automatik</div>
+      </div>
+
+      <div id="import-preview-prog"></div>
+      <div id="import-actions-prog" style="display:none;margin-top:14px">
+        <div class="alert alert-warning" id="import-warn-prog"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="confirmImport('prog')">✅ Sahkan Import</button>
+          <button class="btn btn-secondary" onclick="cancelImport('prog')">Batal</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Staff-only import -->
+    <div class="import-section" id="isec-staff">
+      <div class="alert alert-info">
+        ℹ️ <div>Import senarai staf sahaja. Fail mestilah mengandungi lajur:<br/>
+        <strong>Nama Staf · Jabatan</strong><br/>
+        Staf yang sudah wujud dalam sistem tidak akan digandakan.</div>
+      </div>
+      <div style="font-size:.82rem;font-weight:600;color:#374151;margin-bottom:8px">Format fail yang disokong:</div>
+      <div class="import-tabs" style="margin-bottom:16px">
+        <button class="import-tab active" id="stab-xlsx" onclick="switchFileTab('staff','xlsx')">📊 Excel (.xlsx/.xls/.csv)</button>
+        <button class="import-tab" id="stab-pdf" onclick="switchFileTab('staff','pdf')">📄 PDF</button>
+      </div>
+
+      <div class="import-drop" id="import-drop-staff-xlsx" onclick="document.getElementById('file-input-staff-xlsx').click()">
+        <input type="file" id="file-input-staff-xlsx" accept=".xlsx,.xls,.csv" onchange="handleFileImport(this,'staff','xlsx')"/>
+        <div style="font-size:2.5rem;margin-bottom:10px">📂</div>
+        <div style="font-weight:600;color:#0f2d5e;margin-bottom:4px">Klik atau seret &amp; lepas fail Excel di sini</div>
+        <div style="font-size:.8rem;color:#6b7280">Menyokong .xlsx, .xls, .csv</div>
+      </div>
+      <div class="import-drop" id="import-drop-staff-pdf" style="display:none" onclick="document.getElementById('file-input-staff-pdf').click()">
+        <input type="file" id="file-input-staff-pdf" accept=".pdf" onchange="handleFileImport(this,'staff','pdf')"/>
+        <div style="font-size:2.5rem;margin-bottom:10px">📄</div>
+        <div style="font-weight:600;color:#0f2d5e;margin-bottom:4px">Klik atau seret &amp; lepas fail PDF di sini</div>
+        <div style="font-size:.8rem;color:#6b7280">PDF akan diekstrak teksnya secara automatik</div>
+      </div>
+
+      <div id="import-preview-staff"></div>
+      <div id="import-actions-staff" style="display:none;margin-top:14px">
+        <div class="alert alert-warning" id="import-warn-staff"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="confirmImport('staff')">✅ Sahkan Import</button>
+          <button class="btn btn-secondary" onclick="cancelImport('staff')">Batal</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Template download -->
+    <div style="margin-top:28px">
+      <div class="section-title" style="margin-bottom:10px"><span>📤</span> Muat Turun Templat</div>
+      <p style="font-size:.82rem;color:#6b7280;margin-bottom:10px">Muat turun templat Excel dengan struktur lajur yang betul untuk diisi dengan data anda.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="downloadTemplate('prog')">⬇ Templat Program (.xlsx)</button>
+        <button class="btn btn-secondary" onclick="downloadTemplate('staff')">⬇ Templat Staf (.xlsx)</button>
+      </div>
+    </div>
+  </div>
+</div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══════════ MODALS ══════════ -->
+<!-- Programme Modal -->
+<div class="modal-overlay" id="prog-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="prog-modal-title">Tambah Program</h2>
+      <button class="modal-close" onclick="closeModal('prog-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Nama Program *</label><input id="pm-name" type="text" placeholder="cth. Majlis Konvokesyen 2025"/></div>
+        <div class="form-group"><label>Tarikh *</label><input id="pm-date" type="date"/></div>
+        <div class="form-group"><label>Unit Penganjur *</label><input id="pm-unit" type="text" placeholder="cth. Jabatan Kejuruteraan"/></div>
+        <div class="form-group full"><label>Catatan</label><textarea id="pm-remarks" placeholder="Nota pilihan…"></textarea></div>
+      </div>
+      <div style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label style="font-size:.78rem;font-weight:600;color:#374151">Ahli Jawatankuasa</label>
+          <button class="btn btn-secondary btn-sm" onclick="addMemberRow()">+ Tambah Ahli</button>
+        </div>
+        <div class="member-list" id="member-list">
+          <div class="member-empty" id="member-empty">Tiada ahli ditambah lagi.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('prog-modal')">Batal</button>
+      <button class="btn btn-primary" onclick="saveProgramme()">Simpan Program</button>
+    </div>
+  </div>
+</div>
+
+<!-- Staff Modal -->
+<div class="modal-overlay" id="staff-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="staff-modal-title">Tambah Staf</h2>
+      <button class="modal-close" onclick="closeModal('staff-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Nama Penuh *</label><input id="sm-name" type="text" placeholder="cth. Ahmad bin Ali"/></div>
+        <div class="form-group full"><label>Jabatan / Unit *</label><input id="sm-dept" type="text" placeholder="cth. Jabatan Kejuruteraan Elektrik"/></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('staff-modal')">Batal</button>
+      <button class="btn btn-primary" onclick="saveStaff()">Simpan Staf</button>
+    </div>
+  </div>
+</div>
+
+<!-- Staff History Modal -->
+<div class="modal-overlay" id="history-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 id="history-modal-title">Sejarah Pelantikan</h2>
+      <button class="modal-close" onclick="closeModal('history-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="history-modal-body"></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('history-modal')">Tutup</button></div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header"><h2>Sahkan Padam</h2><button class="modal-close" onclick="closeModal('confirm-modal')">✕</button></div>
+    <div class="modal-body"><p id="confirm-msg" style="color:#374151"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('confirm-modal')">Batal</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">Padam</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ══════════ JAVASCRIPT ══════════ -->
+<script>
+'use strict';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ─── State ────────────────────────────────────────────────────────────
+let DB = {
+  staff: [],       // {id, name, department}
+  programmes: []   // {id, name, date, unit, remarks, members:[{staffId,role}]}
+};
+
+let editingProgId = null;
+let editingStaffId = null;
+let importBuffers = { prog: null, staff: null };
+
+// Import tab state
+let activeImportTab = 'prog';
+let activeFileTab = { prog: 'xlsx', staff: 'xlsx' };
+
+// Pagination state
+const PAGE_SIZE = 15;
+let progPage = 1;
+let staffPage = 1;
+
+// Chart instances
+let chartStaff, chartDept, chartMonth, chartRole;
+
+// Dashboard filter state
+let dashFilter = {year:'', prog:'', dept:'', staff:'', role:''};
+
+// ─── Persistence ─────────────────────────────────────────────────────
+function saveDB(){
+  try{ localStorage.setItem('pbu_db', JSON.stringify(DB)); } catch(e){}
+}
+function loadDB(){
+  try{
+    const raw = localStorage.getItem('pbu_db');
+    if(raw){ DB = JSON.parse(raw); }
+  } catch(e){}
+  if(!Array.isArray(DB.staff)) DB.staff = [];
+  if(!Array.isArray(DB.programmes)) DB.programmes = [];
+}
+
+// ─── ID helper ────────────────────────────────────────────────────────
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+// ─── Toast ────────────────────────────────────────────────────────────
+function toast(msg, type='success'){
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  t.innerHTML=(type==='success'?'✅':type==='error'?'❌':'⚠️')+' '+msg;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3000);
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────
+const pageMeta = {
+  dashboard:     {title:'Dashboard', sub:'Gambaran Keseluruhan &amp; Analitik'},
+  programmes:    {title:'Program', sub:'Urus rekod program'},
+  staff:         {title:'Staf', sub:'Direktori &amp; jumlah pelantikan'},
+  recommendation:{title:'Cadangan', sub:'Panduan pelantikan yang adil'},
+  import:        {title:'Import Data', sub:'Import data dari fail Excel atau PDF'}
+};
+function showPage(id, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  const m=pageMeta[id]||{};
+  document.getElementById('page-title').innerHTML=m.title+' <span class="topbar-sub">'+m.sub+'</span>';
+  if(id==='dashboard') refreshDashboard();
+  if(id==='programmes'){ populateProgFilters(); renderProgrammesTable(); }
+  if(id==='staff'){ populateStaffFilters(); renderStaffTable(); }
+  if(id==='recommendation'){ populateRecFilters(); renderRecommendation(); }
+}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('collapsed');
+}
+
+// ─── Import Tab Switching ─────────────────────────────────────────────
+function switchImportTab(tab){
+  activeImportTab = tab;
+  document.querySelectorAll('.import-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('isec-'+tab).classList.add('active');
+  document.getElementById('tab-prog').classList.toggle('active', tab==='prog');
+  document.getElementById('tab-staff').classList.toggle('active', tab==='staff');
+}
+
+function switchFileTab(importType, fileType){
+  activeFileTab[importType] = fileType;
+  const xlsx = document.getElementById('import-drop-'+importType+'-xlsx');
+  const pdf  = document.getElementById('import-drop-'+importType+'-pdf');
+  const txlsx = document.getElementById((importType==='prog'?'p':'s')+'tab-xlsx');
+  const tpdf  = document.getElementById((importType==='prog'?'p':'s')+'tab-pdf');
+  xlsx.style.display = fileType==='xlsx' ? '' : 'none';
+  pdf.style.display  = fileType==='pdf'  ? '' : 'none';
+  txlsx.classList.toggle('active', fileType==='xlsx');
+  tpdf.classList.toggle('active',  fileType==='pdf');
+}
+
+// ─── Modal helpers ────────────────────────────────────────────────────
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ─── Computed helpers ─────────────────────────────────────────────────
+function getAppointmentCounts(filter={}){
+  const counts={};
+  DB.staff.forEach(s=>counts[s.id]=0);
+  DB.programmes.forEach(p=>{
+    if(filter.year && new Date(p.date).getFullYear().toString()!==filter.year) return;
+    if(filter.prog && p.id!==filter.prog) return;
+    if(filter.unit && p.unit!==filter.unit) return;
+    (p.members||[]).forEach(m=>{
+      if(filter.staff && m.staffId!==filter.staff) return;
+      if(filter.role && m.role!==filter.role) return;
+      if(counts[m.staffId]===undefined) counts[m.staffId]=0;
+      counts[m.staffId]++;
+    });
+  });
+  return counts;
+}
+
+function getFilteredProgrammes(filter={}){
+  return DB.programmes.filter(p=>{
+    if(filter.year && new Date(p.date).getFullYear().toString()!==filter.year) return false;
+    if(filter.prog && p.id!==filter.prog) return false;
+    if(filter.unit && p.unit!==filter.unit) return false;
+    if(filter.staff){
+      if(!(p.members||[]).some(m=>m.staffId===filter.staff)) return false;
+    }
+    if(filter.role){
+      if(!(p.members||[]).some(m=>m.role===filter.role)) return false;
+    }
+    return true;
+  });
+}
+
+function getAllRoles(){
+  const r=new Set();
+  DB.programmes.forEach(p=>(p.members||[]).forEach(m=>{if(m.role) r.add(m.role);}));
+  return [...r].sort();
+}
+function getAllUnits(){
+  const s=new Set();
+  DB.programmes.forEach(p=>{if(p.unit) s.add(p.unit);});
+  return [...s].sort();
+}
+function getAllYears(){
+  const s=new Set();
+  DB.programmes.forEach(p=>{if(p.date) s.add(new Date(p.date).getFullYear());});
+  return [...s].sort((a,b)=>b-a);
+}
+function getAllDepts(){
+  const s=new Set();
+  DB.staff.forEach(st=>{if(st.department) s.add(st.department);});
+  return [...s].sort();
+}
+function staffName(id){
+  const s=DB.staff.find(x=>x.id===id);
+  return s?s.name:'Tidak Diketahui';
+}
+function staffDept(id){
+  const s=DB.staff.find(x=>x.id===id);
+  return s?s.department:'—';
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────
+function populateDashFilterOptions(){
+  const years=getAllYears();
+  const fy=document.getElementById('f-year');
+  const curY=fy.value;
+  fy.innerHTML='<option value="">Semua Tahun</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  fy.value=curY;
+
+  const fp=document.getElementById('f-prog');
+  const curP=fp.value;
+  fp.innerHTML='<option value="">Semua Program</option>'+DB.programmes.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  fp.value=curP;
+
+  const depts=getAllDepts();
+  const fd=document.getElementById('f-dept');
+  const curD=fd.value;
+  fd.innerHTML='<option value="">Semua Jabatan</option>'+depts.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  fd.value=curD;
+
+  const fs=document.getElementById('f-staff');
+  const curS=fs.value;
+  fs.innerHTML='<option value="">Semua Staf</option>'+DB.staff.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  fs.value=curS;
+
+  const roles=getAllRoles();
+  const fr=document.getElementById('f-role');
+  const curR=fr.value;
+  fr.innerHTML='<option value="">Semua Peranan</option>'+roles.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('');
+  fr.value=curR;
+}
+function applyDashFilters(){
+  dashFilter.year  = document.getElementById('f-year').value;
+  dashFilter.prog  = document.getElementById('f-prog').value;
+  dashFilter.dept  = document.getElementById('f-dept').value;
+  dashFilter.staff = document.getElementById('f-staff').value;
+  dashFilter.role  = document.getElementById('f-role').value;
+  refreshDashboard();
+}
+function clearDashFilters(){
+  ['f-year','f-prog','f-dept','f-staff','f-role'].forEach(id=>document.getElementById(id).value='');
+  dashFilter={year:'',prog:'',dept:'',staff:'',role:''};
+  refreshDashboard();
+}
+
+function refreshDashboard(){
+  populateDashFilterOptions();
+  const filteredProgs = getFilteredProgrammes(dashFilter);
+  const counts = getAppointmentCounts(dashFilter);
+
+  let filteredStaff = DB.staff;
+  if(dashFilter.dept) filteredStaff = DB.staff.filter(s=>s.department===dashFilter.dept);
+
+  const totalAppt = Object.values(counts).reduce((a,b)=>a+b,0);
+
+  let maxStaff=null, minStaff=null, maxCount=0, minCount=Infinity;
+  filteredStaff.forEach(s=>{
+    const c=counts[s.id]||0;
+    if(c>maxCount){maxCount=c;maxStaff=s;}
+    if(c<minCount){minCount=c;minStaff=s;}
+  });
+
+  document.getElementById('kpi-grid').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Jumlah Staf</div><div class="kpi-value">${DB.staff.length}</div><div class="kpi-sub">${getAllDepts().length} jabatan</div><div class="kpi-icon">👥</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Jumlah Program</div><div class="kpi-value">${DB.programmes.length}</div><div class="kpi-sub">${filteredProgs.length} mengikut penapis</div><div class="kpi-icon">📋</div></div>
+    <div class="kpi-card purple"><div class="kpi-label">Jumlah Pelantikan</div><div class="kpi-value">${totalAppt}</div><div class="kpi-sub">merentasi data ditapis</div><div class="kpi-icon">📌</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Paling Kerap Dilantik</div><div class="kpi-value" style="font-size:1.1rem">${maxStaff?esc(maxStaff.name):'—'}</div><div class="kpi-sub">${maxStaff?maxCount+' pelantikan':'Tiada data'}</div><div class="kpi-icon">🔝</div></div>
+    <div class="kpi-card teal"><div class="kpi-label">Paling Kurang Dilantik</div><div class="kpi-value" style="font-size:1.1rem">${minStaff?esc(minStaff.name):'—'}</div><div class="kpi-sub">${minStaff?minCount+' pelantikan':'Tiada data'}</div><div class="kpi-icon">📉</div></div>
+  `;
+
+  renderCharts(filteredProgs, counts, filteredStaff);
+  renderHighLowTables(counts, filteredStaff);
+}
+
+function renderCharts(filteredProgs, counts, filteredStaff){
+  const staffLabels = filteredStaff.map(s=>s.name);
+  const staffData   = filteredStaff.map(s=>counts[s.id]||0);
+  const paired = staffLabels.map((l,i)=>({l,v:staffData[i]})).sort((a,b)=>b.v-a.v);
+  const top20 = paired.slice(0,20);
+  document.getElementById('chart-staff-sub').textContent = paired.length>20?`(20 teratas daripada ${paired.length})`:'';
+
+  const barColors = top20.map(x=> x.v>=7?'rgba(220,38,38,.8)': x.v>=4?'rgba(217,119,6,.8)':'rgba(37,99,235,.8)');
+
+  if(chartStaff) chartStaff.destroy();
+  chartStaff = new Chart(document.getElementById('chart-staff'),{
+    type:'bar',
+    data:{labels:top20.map(x=>x.l),datasets:[{label:'Pelantikan',data:top20.map(x=>x.v),backgroundColor:barColors,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{ticks:{maxRotation:35,font:{size:11}}}}}
+  });
+
+  const deptMap={};
+  filteredStaff.forEach(s=>{
+    const dept=s.department||'Tidak Diketahui';
+    deptMap[dept]=(deptMap[dept]||0)+(counts[s.id]||0);
+  });
+  const deptLabels=Object.keys(deptMap);
+  const deptData=Object.values(deptMap);
+  const deptColors=['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#0891b2','#db2777','#65a30d','#9333ea','#f59e0b'];
+
+  if(chartDept) chartDept.destroy();
+  chartDept = new Chart(document.getElementById('chart-dept'),{
+    type:'doughnut',
+    data:{labels:deptLabels,datasets:[{data:deptData,backgroundColor:deptColors.slice(0,deptLabels.length),borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}}}
+  });
+
+  const months=['Jan','Feb','Mac','Apr','Mei','Jun','Jul','Ogs','Sep','Okt','Nov','Dis'];
+  const monthCount=Array(12).fill(0);
+  filteredProgs.forEach(p=>{
+    if(!p.date) return;
+    const m=new Date(p.date).getMonth();
+    const cnt=(p.members||[]).filter(mb=>{
+      if(dashFilter.staff && mb.staffId!==dashFilter.staff) return false;
+      if(dashFilter.role && mb.role!==dashFilter.role) return false;
+      if(dashFilter.dept){
+        const s=DB.staff.find(x=>x.id===mb.staffId);
+        if(!s||s.department!==dashFilter.dept) return false;
+      }
+      return true;
+    }).length;
+    monthCount[m]+=cnt;
+  });
+
+  if(chartMonth) chartMonth.destroy();
+  chartMonth = new Chart(document.getElementById('chart-month'),{
+    type:'line',
+    data:{labels:months,datasets:[{label:'Pelantikan',data:monthCount,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.1)',fill:true,tension:.3,pointRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+  });
+
+  const roleMap={};
+  filteredProgs.forEach(p=>{
+    (p.members||[]).forEach(m=>{
+      if(dashFilter.staff && m.staffId!==dashFilter.staff) return;
+      if(dashFilter.dept){
+        const s=DB.staff.find(x=>x.id===m.staffId);
+        if(!s||s.department!==dashFilter.dept) return;
+      }
+      const r=m.role||'Tidak Dinyatakan';
+      roleMap[r]=(roleMap[r]||0)+1;
+    });
+  });
+  const roleLabels=Object.keys(roleMap);
+  const roleData=Object.values(roleMap);
+
+  if(chartRole) chartRole.destroy();
+  chartRole = new Chart(document.getElementById('chart-role'),{
+    type:'doughnut',
+    data:{labels:roleLabels,datasets:[{data:roleData,backgroundColor:deptColors.slice(0,roleLabels.length),borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}}}
+  });
+}
+
+function renderHighLowTables(counts, filteredStaff){
+  const sorted=[...filteredStaff].map(s=>({s,c:counts[s.id]||0})).sort((a,b)=>b.c-a.c);
+  const top5=sorted.slice(0,5);
+  const bottom5=[...sorted].sort((a,b)=>a.c-b.c).slice(0,5);
+
+  const rowH=top5.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.s.name)}</td><td><span class="tag tag-blue">${esc(x.s.department||'—')}</span></td><td><span class="badge badge-high">${x.c}</span></td></tr>`).join('');
+  document.getElementById('tbl-high').innerHTML=rowH||`<tr><td colspan="4" class="empty-state">Tiada data</td></tr>`;
+
+  const rowL=bottom5.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.s.name)}</td><td><span class="tag tag-blue">${esc(x.s.department||'—')}</span></td><td><span class="badge badge-low">${x.c}</span></td></tr>`).join('');
+  document.getElementById('tbl-low').innerHTML=rowL||`<tr><td colspan="4" class="empty-state">Tiada data</td></tr>`;
+}
+
+// ─── PROGRAMMES ───────────────────────────────────────────────────────
+function populateProgFilters(){
+  const years=getAllYears();
+  const fy=document.getElementById('prog-year');
+  const cur=fy.value;
+  fy.innerHTML='<option value="">Semua</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  fy.value=cur;
+
+  const units=getAllUnits();
+  const fu=document.getElementById('prog-unit');
+  const curU=fu.value;
+  fu.innerHTML='<option value="">Semua</option>'+units.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('');
+  fu.value=curU;
+}
+
+function clearProgFilters(){
+  document.getElementById('prog-search').value='';
+  document.getElementById('prog-year').value='';
+  document.getElementById('prog-unit').value='';
+  renderProgrammesTable();
+}
+
+function filteredProgrammes(){
+  const q=(document.getElementById('prog-search').value||'').toLowerCase();
+  const y=document.getElementById('prog-year').value;
+  const u=document.getElementById('prog-unit').value;
+  return DB.programmes.filter(p=>{
+    if(q && !p.name.toLowerCase().includes(q)) return false;
+    if(y && new Date(p.date).getFullYear().toString()!==y) return false;
+    if(u && p.unit!==u) return false;
+    return true;
+  });
+}
+
+function renderProgrammesTable(){
+  const list=filteredProgrammes();
+  const total=list.length;
+  const maxPage=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(progPage>maxPage) progPage=maxPage;
+  const slice=list.slice((progPage-1)*PAGE_SIZE, progPage*PAGE_SIZE);
+
+  document.getElementById('prog-count').textContent=`${total} rekod`;
+
+  const tbody=document.getElementById('prog-tbody');
+  if(!slice.length){
+    tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Tiada program dijumpai</div><div class="empty-sub">Tambah program atau laraskan penapis anda.</div></div></td></tr>`;
+    document.getElementById('prog-pag').innerHTML='';
+    return;
+  }
+  tbody.innerHTML=slice.map((p,i)=>{
+    const idx=(progPage-1)*PAGE_SIZE+i+1;
+    const members=(p.members||[]);
+    const tags=members.slice(0,3).map(m=>`<span class="tag tag-blue">${esc(staffName(m.staffId))}</span>`).join('');
+    const more=members.length>3?`<span class="tag tag-gray">+${members.length-3} lagi</span>`:'';
+    return `<tr>
+      <td>${idx}</td>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td>${p.date?new Date(p.date).toLocaleDateString('ms-MY'):'-'}</td>
+      <td>${esc(p.unit||'—')}</td>
+      <td>${tags}${more}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.remarks||'—')}</td>
+      <td><div class="actions-cell">
+        <button class="btn btn-icon btn-sm" title="Edit" onclick="openProgModal('${p.id}')">✏️</button>
+        <button class="btn btn-icon btn-sm" title="Padam" onclick="confirmDelete('programme','${p.id}')">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('prog-pag', progPage, maxPage, n=>{progPage=n;renderProgrammesTable();});
+}
+
+function openProgModal(id){
+  editingProgId = id||null;
+  document.getElementById('prog-modal-title').textContent = id ? 'Edit Program' : 'Tambah Program';
+  const p = id ? DB.programmes.find(x=>x.id===id) : null;
+  document.getElementById('pm-name').value    = p?p.name:'';
+  document.getElementById('pm-date').value    = p?p.date:'';
+  document.getElementById('pm-unit').value    = p?p.unit:'';
+  document.getElementById('pm-remarks').value = p?p.remarks:'';
+
+  document.getElementById('member-list').innerHTML='';
+  editingProgId = id||null;
+  if(p && p.members && p.members.length){
+    p.members.forEach(m=>addMemberRow(m.staffId, m.role));
+  } else {
+    document.getElementById('member-list').innerHTML='<div class="member-empty" id="member-empty">Tiada ahli ditambah lagi.</div>';
+  }
+  openModal('prog-modal');
+}
+
+function addMemberRow(staffId='', role=''){
+  const empty=document.getElementById('member-empty');
+  if(empty) empty.remove();
+  const list=document.getElementById('member-list');
+  const row=document.createElement('div');
+  row.className='member-row';
+  const staffOpts=DB.staff.map(s=>`<option value="${s.id}" ${s.id===staffId?'selected':''}>${esc(s.name)} (${esc(s.department||'')})</option>`).join('');
+  row.innerHTML=`
+    <select class="mr-staff"><option value="">-- Pilih Staf --</option>${staffOpts}</select>
+    <input class="mr-role" type="text" placeholder="Peranan (cth. AJK, Pengerusi)" value="${esc(role)}"/>
+    <button class="btn btn-danger btn-sm" onclick="this.closest('.member-row').remove();checkMemberEmpty()">✕</button>
+  `;
+  list.appendChild(row);
+}
+
+function checkMemberEmpty(){
+  const list=document.getElementById('member-list');
+  if(!list.querySelector('.member-row')){
+    list.innerHTML='<div class="member-empty" id="member-empty">Tiada ahli ditambah lagi.</div>';
+  }
+}
+
+function saveProgramme(){
+  const name=document.getElementById('pm-name').value.trim();
+  const date=document.getElementById('pm-date').value;
+  const unit=document.getElementById('pm-unit').value.trim();
+  const remarks=document.getElementById('pm-remarks').value.trim();
+  if(!name){toast('Nama program diperlukan.','error');return;}
+  if(!date){toast('Tarikh diperlukan.','error');return;}
+  if(!unit){toast('Unit penganjur diperlukan.','error');return;}
+
+  const rows=document.querySelectorAll('#member-list .member-row');
+  const members=[];
+  let err='';
+  rows.forEach(r=>{
+    const sId=r.querySelector('.mr-staff').value;
+    const role=r.querySelector('.mr-role').value.trim();
+    if(!sId){err='Sila pilih staf untuk semua baris ahli.';return;}
+    members.push({staffId:sId,role});
+  });
+  if(err){toast(err,'error');return;}
+
+  if(editingProgId){
+    const idx=DB.programmes.findIndex(p=>p.id===editingProgId);
+    if(idx>-1) DB.programmes[idx]={id:editingProgId,name,date,unit,remarks,members};
+    toast('Program dikemaskini.');
+  } else {
+    DB.programmes.push({id:uid(),name,date,unit,remarks,members});
+    toast('Program ditambah.');
+  }
+  saveDB();
+  closeModal('prog-modal');
+  populateProgFilters();
+  renderProgrammesTable();
+}
+
+// ─── STAFF ────────────────────────────────────────────────────────────
+function populateStaffFilters(){
+  const depts=getAllDepts();
+  const fd=document.getElementById('staff-dept-filter');
+  const cur=fd.value;
+  fd.innerHTML='<option value="">Semua</option>'+depts.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  fd.value=cur;
+}
+
+function clearStaffFilters(){
+  document.getElementById('staff-search').value='';
+  document.getElementById('staff-dept-filter').value='';
+  renderStaffTable();
+}
+
+function filteredStaffList(){
+  const q=(document.getElementById('staff-search').value||'').toLowerCase();
+  const d=document.getElementById('staff-dept-filter').value;
+  return DB.staff.filter(s=>{
+    if(q && !s.name.toLowerCase().includes(q)) return false;
+    if(d && s.department!==d) return false;
+    return true;
+  });
+}
+
+function renderStaffTable(){
+  const counts=getAppointmentCounts();
+  const maxCount=Math.max(1,...Object.values(counts));
+  const list=filteredStaffList();
+  const total=list.length;
+  const maxPage=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(staffPage>maxPage) staffPage=maxPage;
+  const slice=list.slice((staffPage-1)*PAGE_SIZE, staffPage*PAGE_SIZE);
+
+  document.getElementById('staff-count').textContent=`${total} staf`;
+
+  const tbody=document.getElementById('staff-tbody');
+  if(!slice.length){
+    tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👤</div><div class="empty-title">Tiada staf dijumpai</div><div class="empty-sub">Tambah staf atau laraskan penapis anda.</div></div></td></tr>`;
+    document.getElementById('staff-pag').innerHTML='';
+    return;
+  }
+
+  tbody.innerHTML=slice.map((s,i)=>{
+    const idx=(staffPage-1)*PAGE_SIZE+i+1;
+    const c=counts[s.id]||0;
+    const pct=Math.round((c/maxCount)*100);
+    const barColor= c>=7?'#dc2626': c>=4?'#d97706':'#2563eb';
+    const badgeCls= c>=7?'badge-high': c>=4?'badge-med':'badge-low';
+    const roleSet=new Set();
+    DB.programmes.forEach(p=>(p.members||[]).forEach(m=>{if(m.staffId===s.id&&m.role) roleSet.add(m.role);}));
+    const roleTags=[...roleSet].slice(0,3).map(r=>`<span class="tag tag-purple">${esc(r)}</span>`).join('');
+    return `<tr>
+      <td>${idx}</td>
+      <td><strong>${esc(s.name)}</strong></td>
+      <td><span class="tag tag-blue">${esc(s.department||'—')}</span></td>
+      <td><span class="badge ${badgeCls}">${c}</span></td>
+      <td><div class="workload-bar-wrap"><div class="workload-bar"><div class="workload-bar-fill" style="width:${pct}%;background:${barColor}"></div></div><span class="workload-val" style="color:${barColor}">${c}</span></div></td>
+      <td>${roleTags||'<span style="color:#9ca3af;font-size:.78rem">—</span>'}</td>
+      <td><div class="actions-cell">
+        <button class="btn btn-icon btn-sm" title="Sejarah" onclick="openHistory('${s.id}')">📜</button>
+        <button class="btn btn-icon btn-sm" title="Edit" onclick="openStaffModal('${s.id}')">✏️</button>
+        <button class="btn btn-icon btn-sm" title="Padam" onclick="confirmDelete('staff','${s.id}')">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('staff-pag', staffPage, maxPage, n=>{staffPage=n;renderStaffTable();});
+}
+
+function openStaffModal(id){
+  editingStaffId=id||null;
+  document.getElementById('staff-modal-title').textContent=id?'Edit Staf':'Tambah Staf';
+  const s=id?DB.staff.find(x=>x.id===id):null;
+  document.getElementById('sm-name').value=s?s.name:'';
+  document.getElementById('sm-dept').value=s?s.department:'';
+  openModal('staff-modal');
+}
+
+function saveStaff(){
+  const name=document.getElementById('sm-name').value.trim();
+  const dept=document.getElementById('sm-dept').value.trim();
+  if(!name){toast('Nama staf diperlukan.','error');return;}
+  if(!dept){toast('Jabatan diperlukan.','error');return;}
+
+  if(editingStaffId){
+    const idx=DB.staff.findIndex(s=>s.id===editingStaffId);
+    if(idx>-1) DB.staff[idx]={id:editingStaffId,name,department:dept};
+    toast('Staf dikemaskini.');
+  } else {
+    if(DB.staff.some(s=>s.name.toLowerCase()===name.toLowerCase()&&s.department===dept)){
+      toast('Staf ini sudah wujud.','warning'); return;
+    }
+    DB.staff.push({id:uid(),name,department:dept});
+    toast('Staf ditambah.');
+  }
+  saveDB();
+  closeModal('staff-modal');
+  populateStaffFilters();
+  renderStaffTable();
+}
+
+function openHistory(staffId){
+  const s=DB.staff.find(x=>x.id===staffId);
+  if(!s) return;
+  document.getElementById('history-modal-title').textContent='Sejarah Pelantikan — '+s.name;
+
+  const appts=[];
+  DB.programmes.forEach(p=>{
+    (p.members||[]).forEach(m=>{
+      if(m.staffId===staffId) appts.push({prog:p,role:m.role});
+    });
+  });
+  appts.sort((a,b)=>new Date(b.prog.date)-new Date(a.prog.date));
+
+  let html=`<div class="alert alert-info">📌 <strong>${esc(s.name)}</strong> telah dilantik sebanyak <strong>${appts.length}</strong> kali.</div>`;
+  if(appts.length){
+    html+=`<table style="width:100%;border-collapse:collapse;font-size:.85rem">
+      <thead><tr style="background:#f4f7fb"><th style="padding:8px 10px;text-align:left;border-bottom:1px solid #dde3ec">Program</th><th style="padding:8px 10px;text-align:left;border-bottom:1px solid #dde3ec">Tarikh</th><th style="padding:8px 10px;text-align:left;border-bottom:1px solid #dde3ec">Unit</th><th style="padding:8px 10px;text-align:left;border-bottom:1px solid #dde3ec">Peranan</th></tr></thead><tbody>`;
+    appts.forEach(a=>{
+      html+=`<tr style="border-bottom:1px solid #f0f2f5"><td style="padding:8px 10px">${esc(a.prog.name)}</td><td style="padding:8px 10px">${a.prog.date?new Date(a.prog.date).toLocaleDateString('ms-MY'):'-'}</td><td style="padding:8px 10px">${esc(a.prog.unit||'—')}</td><td style="padding:8px 10px"><span class="tag tag-purple">${esc(a.role||'—')}</span></td></tr>`;
+    });
+    html+=`</tbody></table>`;
+  } else {
+    html+=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Tiada pelantikan lagi</div></div>`;
+  }
+  document.getElementById('history-modal-body').innerHTML=html;
+  openModal('history-modal');
+}
+
+// ─── RECOMMENDATION ───────────────────────────────────────────────────
+function populateRecFilters(){
+  const depts=getAllDepts();
+  const rd=document.getElementById('rec-dept');
+  const cur=rd.value;
+  rd.innerHTML='<option value="">Semua</option>'+depts.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  rd.value=cur;
+}
+
+function renderRecommendation(){
+  const dept=document.getElementById('rec-dept').value;
+  const sort=document.getElementById('rec-sort').value;
+  const threshold=parseInt(document.getElementById('rec-threshold').value)||5;
+
+  const counts=getAppointmentCounts();
+  const maxCount=Math.max(1,...Object.values(counts));
+
+  let list=[...DB.staff];
+  if(dept) list=list.filter(s=>s.department===dept);
+
+  list=list.map(s=>({...s,count:counts[s.id]||0}));
+  if(sort==='asc') list.sort((a,b)=>a.count-b.count||(a.name<b.name?-1:1));
+  else if(sort==='desc') list.sort((a,b)=>b.count-a.count);
+  else list.sort((a,b)=>a.name<b.name?-1:1);
+
+  const recommended=list.filter(s=>s.count<threshold);
+  const flagged=list.filter(s=>s.count>=threshold);
+
+  document.getElementById('rec-summary').innerHTML=`
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="alert alert-success" style="flex:1;min-width:200px">✅ <strong>${recommended.length}</strong> staf dicadangkan (kurang daripada ${threshold} pelantikan)</div>
+      ${flagged.length?`<div class="alert alert-warning" style="flex:1;min-width:200px">⚠️ <strong>${flagged.length}</strong> staf ditanda (${threshold}+ pelantikan)</div>`:''}
+    </div>`;
+
+  const cardList=list.slice(0,24);
+  const grid=document.getElementById('rec-grid');
+  if(!list.length){
+    grid.innerHTML=`<div class="empty-state"><div class="empty-icon">👤</div><div class="empty-title">Tiada staf dijumpai</div></div>`;
+  } else {
+    grid.innerHTML=cardList.map(s=>{
+      const flag=s.count>=threshold?'flag-high':s.count===0?'flag-none':'flag-low';
+      const cls=s.count>=threshold?'high':s.count===0?'med':'low';
+      const badge=s.count>=threshold?'rec-badge-flag':s.count===0?'rec-badge-ok':'rec-badge-rec';
+      const badgeText=s.count>=threshold?'⚠ Kerap':s.count===0?'◉ Tiada Lantikan':'✓ Dicadangkan';
+      return `<div class="rec-card ${flag}">
+        <span class="rec-badge ${badge}">${badgeText}</span>
+        <div class="rec-name">${esc(s.name)}</div>
+        <div class="rec-dept">${esc(s.department||'—')}</div>
+        <div class="rec-count ${cls}">${s.count}</div>
+        <div class="rec-label">jumlah pelantikan</div>
+      </div>`;
+    }).join('');
+  }
+
+  const tbody=document.getElementById('rec-tbody');
+  if(!list.length){
+    tbody.innerHTML=`<tr><td colspan="6"><div class="empty-state">Tiada data staf.</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML=list.map(s=>{
+    const pct=Math.round((s.count/maxCount)*100);
+    const barColor=s.count>=threshold?'#dc2626':s.count===0?'#d97706':'#059669';
+
+    let lastProg='—';
+    let lastDate=null;
+    DB.programmes.forEach(p=>{
+      if((p.members||[]).some(m=>m.staffId===s.id)){
+        const d=new Date(p.date);
+        if(!lastDate||d>lastDate){lastDate=d;lastProg=p.name;}
+      }
+    });
+
+    const recText=s.count>=threshold
+      ?`<span class="tag tag-red">⚠ Kerap — pertimbangkan orang lain</span>`
+      :s.count===0
+        ?`<span class="tag tag-orange">◉ Tiada pelantikan terdahulu</span>`
+        :`<span class="tag tag-green">✓ Dicadangkan</span>`;
+
+    return `<tr>
+      <td><strong>${esc(s.name)}</strong></td>
+      <td>${esc(s.department||'—')}</td>
+      <td><strong>${s.count}</strong></td>
+      <td><div class="workload-bar-wrap"><div class="workload-bar"><div class="workload-bar-fill" style="width:${pct}%;background:${barColor}"></div></div><span class="workload-val" style="color:${barColor}">${s.count}</span></div></td>
+      <td style="font-size:.78rem;color:#6b7280">${esc(lastProg)}</td>
+      <td>${recText}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── DELETE ───────────────────────────────────────────────────────────
+function confirmDelete(type, id){
+  let msg='';
+  if(type==='programme'){
+    const p=DB.programmes.find(x=>x.id===id);
+    msg=`Padam program "<strong>${esc(p?p.name:'')}</strong>"? Ini akan mengalih keluar semua pelantikan yang berkaitan dengan program ini.`;
+  } else {
+    const s=DB.staff.find(x=>x.id===id);
+    const cnt=DB.programmes.reduce((a,p)=>a+(p.members||[]).filter(m=>m.staffId===id).length,0);
+    msg=`Padam staf "<strong>${esc(s?s.name:'')}</strong>"? Mereka muncul dalam <strong>${cnt}</strong> tugasan program. Rekod pelantikan mereka akan dibuang.`;
+  }
+  document.getElementById('confirm-msg').innerHTML=msg;
+  const btn=document.getElementById('confirm-ok-btn');
+  btn.onclick=()=>{
+    if(type==='programme'){
+      DB.programmes=DB.programmes.filter(p=>p.id!==id);
+      toast('Program dipadam.');
+      saveDB();
+      populateProgFilters();
+      renderProgrammesTable();
+    } else {
+      DB.staff=DB.staff.filter(s=>s.id!==id);
+      DB.programmes.forEach(p=>{ p.members=(p.members||[]).filter(m=>m.staffId!==id); });
+      toast('Staf dipadam.');
+      saveDB();
+      populateStaffFilters();
+      renderStaffTable();
+    }
+    closeModal('confirm-modal');
+  };
+  openModal('confirm-modal');
+}
+
+// ─── PAGINATION ───────────────────────────────────────────────────────
+function renderPagination(containerId, current, max, onChange){
+  const c=document.getElementById(containerId);
+  if(max<=1){c.innerHTML='';return;}
+  let html=`<span class="page-info">Halaman ${current} daripada ${max}</span>`;
+  if(current>1) html+=`<button class="page-btn" onclick="(${onChange})(1)">«</button><button class="page-btn" onclick="(${onChange})(${current-1})">‹</button>`;
+  let start=Math.max(1,current-2), end=Math.min(max,start+4);
+  if(end-start<4) start=Math.max(1,end-4);
+  for(let i=start;i<=end;i++) html+=`<button class="page-btn ${i===current?'active':''}" onclick="(${onChange})(${i})">${i}</button>`;
+  if(current<max) html+=`<button class="page-btn" onclick="(${onChange})(${current+1})">›</button><button class="page-btn" onclick="(${onChange})(${max})">»</button>`;
+  c.innerHTML=html;
+}
+
+// ─── FILE IMPORT ──────────────────────────────────────────────────────
+// Drag & drop for all drop zones
+['prog-xlsx','prog-pdf','staff-xlsx','staff-pdf'].forEach(key=>{
+  const el=document.getElementById('import-drop-'+key);
+  if(!el) return;
+  const [importType, fileType] = key.split('-');
+  el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('drag');});
+  el.addEventListener('dragleave',()=>el.classList.remove('drag'));
+  el.addEventListener('drop',e=>{
+    e.preventDefault();el.classList.remove('drag');
+    const f=e.dataTransfer.files[0];
+    if(f) processFile(f, importType, fileType);
+  });
+});
+
+function handleFileImport(input, importType, fileType){
+  if(input.files[0]) processFile(input.files[0], importType, fileType);
+}
+
+function processFile(file, importType, fileType){
+  if(fileType==='pdf'){
+    processPDF(file, importType);
+  } else {
+    processXLSX(file, importType);
+  }
+}
+
+function processXLSX(file, importType){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){toast('Fail kosong atau tidak boleh dibaca.','error');return;}
+      if(importType==='staff'){
+        parseStaffImportRows(rows);
+      } else {
+        parseProgImportRows(rows);
+      }
+    } catch(err){
+      toast('Gagal membaca fail: '+err.message,'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function processPDF(file, importType){
+  try{
+    toast('Membaca PDF…','warning');
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    let fullText = '';
+    for(let i=1; i<=pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(item=>item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+    parsePDFText(fullText, importType);
+  } catch(err){
+    toast('Gagal membaca PDF: '+err.message,'error');
+  }
+}
+
+// Parse PDF text into row-like objects by detecting table structure
+function parsePDFText(text, importType){
+  // Split into lines, filter blanks
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+
+  if(importType==='staff'){
+    // Try to extract Name + Department pairs
+    // Look for header row containing "nama" and "jabatan"
+    const headerIdx = lines.findIndex(l=>/nama/i.test(l)&&/jabatan/i.test(l));
+    const rows = [];
+    if(headerIdx>=0){
+      // Header found — parse subsequent lines as tab/space separated
+      for(let i=headerIdx+1; i<lines.length; i++){
+        const parts = lines[i].split(/\s{2,}|\t/).map(s=>s.trim()).filter(s=>s);
+        if(parts.length>=2){
+          rows.push({'Nama Staf': parts[0], 'Jabatan': parts.slice(1).join(' ')});
+        }
+      }
+    } else {
+      // Fallback: alternate lines as name/dept pairs
+      for(let i=0; i<lines.length-1; i+=2){
+        rows.push({'Nama Staf': lines[i], 'Jabatan': lines[i+1]});
+      }
+    }
+    if(!rows.length){toast('Tiada data staf dapat diekstrak dari PDF. Sila gunakan format Excel.','error');return;}
+    parseStaffImportRows(rows);
+  } else {
+    // Programme import from PDF
+    const headerIdx = lines.findIndex(l=>/(nama program|program name)/i.test(l));
+    const rows = [];
+    if(headerIdx>=0){
+      for(let i=headerIdx+1; i<lines.length; i++){
+        const parts = lines[i].split(/\s{2,}|\t/).map(s=>s.trim()).filter(s=>s);
+        if(parts.length>=2){
+          rows.push({
+            'Nama Program': parts[0]||'',
+            'Tarikh': parts[1]||'',
+            'Unit Penganjur': parts[2]||'',
+            'Nama Staf': parts[3]||'',
+            'Jabatan': parts[4]||'',
+            'Peranan': parts[5]||'',
+            'Catatan': parts[6]||''
+          });
+        }
+      }
+    }
+    if(!rows.length){toast('Tiada data program dapat diekstrak dari PDF. Sila gunakan format Excel.','error');return;}
+    parseProgImportRows(rows);
+  }
+}
+
+// ─── Column mapping ───────────────────────────────────────────────────
+const COL_MAP={
+  prog:    ['nama program','programme name','programme','program'],
+  date:    ['tarikh','date'],
+  unit:    ['unit penganjur','organising unit','unit','bahagian','organizer'],
+  staff:   ['nama staf','nama staff','staff name','staff','nama'],
+  dept:    ['jabatan','department','dept','unit staf'],
+  role:    ['peranan','jawatan','role','committee role'],
+  remarks: ['catatan','nota','remarks','notes']
+};
+
+function mapCol(headers, keys){
+  for(const k of keys){
+    const found=headers.find(h=>h.toLowerCase().trim()===k);
+    if(found) return found;
+  }
+  for(const k of keys){
+    const found=headers.find(h=>h.toLowerCase().includes(k.split(' ')[0]));
+    if(found) return found;
+  }
+  return null;
+}
+
+// ─── Programme import parsing ─────────────────────────────────────────
+function parseProgImportRows(rows){
+  const headers=Object.keys(rows[0]);
+  const cProg   = mapCol(headers, COL_MAP.prog);
+  const cDate   = mapCol(headers, COL_MAP.date);
+  const cUnit   = mapCol(headers, COL_MAP.unit);
+  const cStaff  = mapCol(headers, COL_MAP.staff);
+  const cDept   = mapCol(headers, COL_MAP.dept);
+  const cRole   = mapCol(headers, COL_MAP.role);
+  const cRemarks= mapCol(headers, COL_MAP.remarks);
+
+  if(!cProg||!cStaff){
+    toast('Lajur "Nama Program" dan "Nama Staf" diperlukan.','error');
+    showImportPreview(rows,{cProg,cDate,cUnit,cStaff,cDept,cRole,cRemarks},'prog',true);
+    return;
+  }
+
+  importBuffers.prog={rows,cProg,cDate,cUnit,cStaff,cDept,cRole,cRemarks};
+  showImportPreview(rows,{cProg,cDate,cUnit,cStaff,cDept,cRole,cRemarks},'prog',false);
+}
+
+// ─── Staff-only import parsing ────────────────────────────────────────
+function parseStaffImportRows(rows){
+  const headers=Object.keys(rows[0]);
+  const cName = mapCol(headers, COL_MAP.staff);
+  const cDept = mapCol(headers, COL_MAP.dept);
+
+  if(!cName){
+    toast('Lajur "Nama Staf" diperlukan.','error');
+    return;
+  }
+
+  importBuffers.staff={rows,cName,cDept};
+  // Show staff preview
+  const preview=document.getElementById('import-preview-staff');
+  const tableRows=rows.slice(0,20).map(r=>`<tr>
+    <td style="padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:.8rem">${esc(cName?String(r[cName]||''):'—')}</td>
+    <td style="padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:.8rem">${esc(cDept?String(r[cDept]||''):'—')}</td>
+  </tr>`).join('');
+  preview.innerHTML=`
+    <div style="margin:14px 0 6px;font-size:.82rem;color:#374151"><strong>${rows.length} baris</strong> dikesan. Menunjukkan 20 pertama.</div>
+    <div class="preview-table-wrap">
+      <table><thead><tr>
+        <th style="padding:8px 10px;background:#f4f7fb;font-size:.78rem;border-bottom:1px solid #dde3ec">Nama Staf</th>
+        <th style="padding:8px 10px;background:#f4f7fb;font-size:.78rem;border-bottom:1px solid #dde3ec">Jabatan</th>
+      </tr></thead><tbody>${tableRows}</tbody></table>
+    </div>`;
+
+  document.getElementById('import-warn-staff').innerHTML='⚠️ Import akan menambah staf baharu yang belum wujud dalam sistem. Rekod sedia ada dipelihara.';
+  document.getElementById('import-actions-staff').style.display='block';
+}
+
+function showImportPreview(rows, cols, importType, hasError){
+  const preview=document.getElementById('import-preview-'+importType);
+  const headers=['Nama Program','Tarikh','Unit','Nama Staf','Jabatan','Peranan','Catatan'];
+  const colKeys=[cols.cProg,cols.cDate,cols.cUnit,cols.cStaff,cols.cDept,cols.cRole,cols.cRemarks];
+
+  const tableRows=rows.slice(0,20).map(r=>`<tr>${colKeys.map(k=>`<td style="padding:6px 10px;border-bottom:1px solid #f0f2f5;font-size:.8rem">${esc(k?String(r[k]||''):'—')}</td>`).join('')}</tr>`).join('');
+
+  preview.innerHTML=`
+    <div style="margin:14px 0 6px;font-size:.82rem;color:#374151"><strong>${rows.length} baris</strong> dikesan. Menunjukkan 20 pertama.</div>
+    <div class="preview-table-wrap">
+      <table><thead><tr>${headers.map(h=>`<th style="padding:8px 10px;background:#f4f7fb;font-size:.78rem;border-bottom:1px solid #dde3ec;white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+      <tbody>${tableRows}</tbody></table>
+    </div>`;
+
+  const actions=document.getElementById('import-actions-'+importType);
+  if(!hasError){
+    document.getElementById('import-warn-'+importType).innerHTML='⚠️ Import akan menambah program dan staf baharu yang belum wujud dalam pangkalan data. Rekod sedia ada dipelihara.';
+    actions.style.display='block';
+  } else {
+    actions.style.display='none';
+  }
+}
+
+function confirmImport(importType){
+  if(importType==='staff'){
+    confirmStaffImport();
+  } else {
+    confirmProgImport();
+  }
+}
+
+function confirmProgImport(){
+  if(!importBuffers.prog){return;}
+  const {rows,cProg,cDate,cUnit,cStaff,cDept,cRole,cRemarks}=importBuffers.prog;
+  let newStaff=0, newProg=0, newAppt=0;
+
+  const progMap={};
+  rows.forEach(r=>{
+    const pName=(cProg?String(r[cProg]||''):'').trim();
+    if(!pName) return;
+    if(!progMap[pName]) progMap[pName]={date:'',unit:'',remarks:'',members:[]};
+    if(cDate && r[cDate] && !progMap[pName].date){
+      const rawDate=r[cDate];
+      if(typeof rawDate==='number'){
+        const d=XLSX.SSF.parse_date_code(rawDate);
+        progMap[pName].date=`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+      } else {
+        const parsed=new Date(rawDate);
+        if(!isNaN(parsed)) progMap[pName].date=parsed.toISOString().split('T')[0];
+      }
+    }
+    if(cUnit && r[cUnit]) progMap[pName].unit=(progMap[pName].unit||String(r[cUnit]).trim());
+    if(cRemarks && r[cRemarks]) progMap[pName].remarks=(progMap[pName].remarks||String(r[cRemarks]).trim());
+    const staffNameVal=(cStaff?String(r[cStaff]||''):'').trim();
+    const deptVal=(cDept?String(r[cDept]||''):'').trim();
+    const roleVal=(cRole?String(r[cRole]||''):'').trim();
+    if(staffNameVal) progMap[pName].members.push({staffName:staffNameVal,dept:deptVal,role:roleVal});
+  });
+
+  Object.entries(progMap).forEach(([pName,pd])=>{
+    const memberEntries=pd.members.map(m=>{
+      let s=DB.staff.find(x=>x.name.toLowerCase()===m.staffName.toLowerCase());
+      if(!s){
+        s={id:uid(),name:m.staffName,department:m.dept||'—'};
+        DB.staff.push(s);
+        newStaff++;
+      }
+      return {staffId:s.id,role:m.role};
+    });
+
+    let p=DB.programmes.find(x=>x.name.toLowerCase()===pName.toLowerCase());
+    if(!p){
+      p={id:uid(),name:pName,date:pd.date||'',unit:pd.unit||'',remarks:pd.remarks||'',members:[]};
+      DB.programmes.push(p);
+      newProg++;
+    }
+    memberEntries.forEach(me=>{
+      const exists=(p.members||[]).some(x=>x.staffId===me.staffId&&x.role===me.role);
+      if(!exists){p.members.push(me);newAppt++;}
+    });
+  });
+
+  saveDB();
+  toast(`Import selesai: ${newProg} program, ${newStaff} staf, ${newAppt} pelantikan ditambah.`,'success');
+  cancelImport('prog');
+}
+
+function confirmStaffImport(){
+  if(!importBuffers.staff){return;}
+  const {rows,cName,cDept}=importBuffers.staff;
+  let newStaff=0;
+
+  rows.forEach(r=>{
+    const name=(cName?String(r[cName]||''):'').trim();
+    const dept=(cDept?String(r[cDept]||''):'').trim()||'—';
+    if(!name) return;
+    const exists=DB.staff.some(s=>s.name.toLowerCase()===name.toLowerCase());
+    if(!exists){
+      DB.staff.push({id:uid(),name,department:dept});
+      newStaff++;
+    }
+  });
+
+  saveDB();
+  toast(`Import selesai: ${newStaff} staf baharu ditambah.`,'success');
+  cancelImport('staff');
+}
+
+function cancelImport(importType){
+  importBuffers[importType]=null;
+  document.getElementById('import-preview-'+importType).innerHTML='';
+  document.getElementById('import-actions-'+importType).style.display='none';
+  const xlsxInput = document.getElementById('file-input-'+importType+'-xlsx');
+  const pdfInput  = document.getElementById('file-input-'+importType+'-pdf');
+  if(xlsxInput) xlsxInput.value='';
+  if(pdfInput)  pdfInput.value='';
+}
+
+function downloadTemplate(type){
+  let data, sheetName, fileName;
+  if(type==='staff'){
+    data=[
+      ['Nama Staf','Jabatan'],
+      ['Ahmad bin Ali','Jabatan Kejuruteraan'],
+      ['Siti binti Bakar','Jabatan Perakaunan'],
+      ['Zamri bin Hassan','Jabatan ICT']
+    ];
+    sheetName='Templat Staf';
+    fileName='PBU_Templat_Staf.xlsx';
+  } else {
+    data=[
+      ['Nama Program','Tarikh','Unit Penganjur','Nama Staf','Jabatan','Peranan','Catatan'],
+      ['Majlis Konvokesyen 2025','2025-06-15','Jabatan Akademik','Ahmad bin Ali','Jabatan Kejuruteraan','Pengerusi',''],
+      ['Majlis Konvokesyen 2025','2025-06-15','Jabatan Akademik','Siti binti Bakar','Jabatan Perakaunan','AJK',''],
+      ['Hari Kualiti 2025','2025-08-20','Jabatan HEP','Zamri bin Hassan','Jabatan ICT','Setiausaha','']
+    ];
+    sheetName='Templat Program';
+    fileName='PBU_Templat_Program.xlsx';
+  }
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  XLSX.writeFile(wb,fileName);
+}
+
+// ─── HTML escape ──────────────────────────────────────────────────────
+function esc(str){
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────
+(function init(){
+  loadDB();
+  refreshDashboard();
+  populateProgFilters();
+  populateStaffFilters();
+  populateRecFilters();
+
+  document.querySelectorAll('.modal-overlay').forEach(o=>{
+    o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('open'); });
+  });
+})();
+</script>
+</body>
+</html>
